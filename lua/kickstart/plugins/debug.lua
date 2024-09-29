@@ -129,6 +129,7 @@ return {
         program = '${file}', -- This configuration will launch the current file if used.
         pythonPath = 'python',
       },
+      -- use python -m debugpy --listen localhost:5678 --wait-for-client <path to file> to create a debug session and then attach
       {
         name = 'Attach',
         type = 'python',
