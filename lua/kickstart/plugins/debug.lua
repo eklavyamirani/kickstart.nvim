@@ -18,11 +18,11 @@ return {
     'nvim-neotest/nvim-nio',
 
     -- Installs the debug adapters for you
-    'williamboman/mason.nvim',
-    'jay-babu/mason-nvim-dap.nvim',
+    -- 'williamboman/mason.nvim',
+    -- 'jay-babu/mason-nvim-dap.nvim',
 
     -- Add your own debuggers here
-    'leoluz/nvim-dap-go',
+    -- 'mfussenegger/nvim-dap-python',
   },
   keys = function(_, keys)
     local dap = require 'dap'
@@ -49,24 +49,23 @@ return {
   config = function()
     local dap = require 'dap'
     local dapui = require 'dapui'
-
-    require('mason-nvim-dap').setup {
-      -- Makes a best effort to setup the various debuggers with
-      -- reasonable debug configurations
-      automatic_installation = true,
-
-      -- You can provide additional configuration to the handlers,
-      -- see mason-nvim-dap README for more information
-      handlers = {},
-
-      -- You'll need to check that you have the required things installed
-      -- online, please don't ask me how to install them :)
-      ensure_installed = {
-        -- Update this to ensure that you have the debuggers for the langs you want
-        'delve',
-      },
-    }
-
+    -- require('mason-nvim-dap').setup {
+    --   -- Makes a best effort to setup the various debuggers with
+    --   -- reasonable debug configurations
+    --   automatic_installation = true,
+    --
+    --   -- You can provide additional configuration to the handlers,
+    --   -- see mason-nvim-dap README for more information
+    --   handlers = {},
+    --
+    --   -- You'll need to check that you have the required things installed
+    --   -- online, please don't ask me how to install them :)
+    --   ensure_installed = {
+    --     -- Update this to ensure that you have the debuggers for the langs you want
+    --     'delve',
+    --   },
+    -- }
+    --
     -- Dap UI setup
     -- For more information, see |:help nvim-dap-ui|
     dapui.setup {
@@ -93,12 +92,53 @@ return {
     dap.listeners.before.event_terminated['dapui_config'] = dapui.close
     dap.listeners.before.event_exited['dapui_config'] = dapui.close
 
-    -- Install golang specific config
-    require('dap-go').setup {
-      delve = {
-        -- On Windows delve must be run attached or it crashes.
-        -- See https://github.com/leoluz/nvim-dap-go/blob/main/README.md#configuring
-        detached = vim.fn.has 'win32' == 0,
+    -- require('dap-python').setup '~/.venv/bin/python'
+    dap.adapters.python = function(cb, config)
+      if config.request == 'attach' then
+        ---@diagnostic disable-next-line: undefined-field
+        local port = (config.connect or config).port
+        ---@diagnostic disable-next-line: undefined-field
+        local host = (config.connect or config).host or '127.0.0.1'
+        cb {
+          type = 'server',
+          port = assert(port, '`connect.port` is required for a python `attach` configuration'),
+          host = host,
+          options = {
+            source_filetype = 'python',
+          },
+        }
+      else
+        cb {
+          type = 'executable',
+          command = 'python3',
+          args = { '-m', 'debugpy.adapter' },
+          options = {
+            source_filetype = 'python',
+          },
+        }
+      end
+    end
+    dap.configurations.python = {
+      {
+        -- Options below are for debugpy, see https://github.com/microsoft/debugpy/wiki/Debug-configuration-settings for supported options
+        -- The first three options are required by nvim-dap
+        type = 'python', -- the type here established the link to the adapter definition: `dap.adapters.python`
+        request = 'launch',
+        name = 'Launch file',
+
+        program = '${file}', -- This configuration will launch the current file if used.
+        pythonPath = 'python',
+      },
+      {
+        name = 'Attach',
+        type = 'python',
+        request = 'attach',
+        connect = function()
+          local host = vim.fn.input 'Host [127.0.0.1]: '
+          host = host ~= '' and host or '127.0.0.1'
+          local port = tonumber(vim.fn.input 'Port [5678]: ') or 5678
+          return { host = host, port = port }
+        end,
       },
     }
   end,
